@@ -1,4 +1,6 @@
-function retrieveStudents(connection, studentIds, callback) {
+const util = require("util");
+
+async function retrieveStudents(connection, studentIds) {
   console.log("Entered retrieveStudents");
   if (studentIds === "") studentIds = 0;
 
@@ -8,10 +10,10 @@ function retrieveStudents(connection, studentIds, callback) {
     ")";
 
   try {
-    connection.query(sql, function (err, rows, fields) {
-      if (err) throw err;
-      return callback(rows);
-    });
+    const query = util.promisify(connection.query).bind(connection);
+
+    const students = await query(sql);
+    return students;
   } catch (err) {
     console.log(`error: ${err.message}`);
   } finally {
@@ -20,16 +22,13 @@ function retrieveStudents(connection, studentIds, callback) {
   }
 }
 
-async function getNextId(connection, callback) {
+async function getNextId(connection) {
   console.log("Entered getNextId");
   try {
-    await connection.query(
-      "SELECT LAST_INSERT_ID()",
-      function (err, rows, fields) {
-        if (err) throw err;
-        return callback(rows[0]["LAST_INSERT_ID()"]);
-      }
-    );
+    const query = util.promisify(connection.query).bind(connection);
+
+    const id = await query("SELECT LAST_INSERT_ID()");
+    return id[0]["LAST_INSERT_ID()"];
   } catch (err) {
     console.log(`error: ${err.message}`);
   } finally {
@@ -38,18 +37,16 @@ async function getNextId(connection, callback) {
   }
 }
 
-function getCourses(connection, callback) {
+async function getCourses(connection) {
   console.log("Entered getCourses");
   try {
-    connection.query(
-      "SELECT * FROM `attendance-taker`.courses ORDER BY courseId DESC",
+    const query = util.promisify(connection.query).bind(connection);
 
-      function (err, rows, fields) {
-        if (err) throw err;
-
-        return callback(rows);
-      }
+    const courses = await query(
+      "SELECT * FROM `attendance-taker`.courses ORDER BY courseId DESC"
     );
+
+    return courses;
   } catch (err) {
     console.log(`error: ${err.message}`);
   } finally {
@@ -58,45 +55,61 @@ function getCourses(connection, callback) {
   }
 }
 
-function getStudentsForCourse(connection, courseId, callback) {
+async function getCourseName(connection, courseId) {
+  console.log("Entered getCourseName");
+  try {
+    const query = util.promisify(connection.query).bind(connection);
+
+    const courseName = await query(
+      "SELECT courseName FROM `attendance-taker`.courses WHERE courseId=:courseId",
+      { courseId }
+    );
+
+    return courseName[0];
+  } catch (err) {
+    console.log(`error: ${err.message}`);
+  } finally {
+    connection.end();
+    console.log("Closed Connection");
+  }
+}
+
+async function getStudentsForCourse(connection, courseId) {
   console.log("Entered getStudentsForCourse");
   try {
-    connection.query(
-      "SELECT * FROM `attendance-taker`.student_has_course WHERE courseId=:courseId",
-      { courseId },
-      function (err, rows, fields) {
-        if (err) throw err;
+    const query = util.promisify(connection.query).bind(connection);
 
-        return callback(rows);
-      }
+    const students = await query(
+      "SELECT * FROM `attendance-taker`.student_has_course WHERE courseId=:courseId",
+      { courseId }
     );
+    console.log(students);
+    return students;
   } catch (err) {
     console.log(`error: ${err.message}`);
   }
 }
 
-function getStudentsPool(connection, courseId, callback) {
+async function getStudentsPool(connection, courseId) {
   console.log("Entered getStudentsPool");
   try {
-    connection.query(
+    const query = util.promisify(connection.query).bind(connection);
+
+    const pool = await query(
       "SELECT DISTINCT studentId FROM `attendance-taker`.student_has_course WHERE courseId != :courseId AND studentId not in (select studentId from `attendance-taker`.student_has_course where courseId=:courseId)",
-      { courseId },
-      function (err, rows, fields) {
-        if (err) throw err;
-        console.log(rows);
-        return callback(rows);
-      }
+      { courseId }
     );
+
+    return pool;
   } catch (err) {
     console.log(`error: ${err.message}`);
   }
 }
 
 const path = require("path");
-const { spawn } = require("child_process");
 const { PythonShell } = require("python-shell");
 //"c:/Users/Aleksa/attendance-taker-BE/src/facialRecog/facialRecognition.py"
-function getFacialRecognitionData(studentPath, callback) {
+async function getFacialRecognitionData(studentPath) {
   console.log("Entered getFacialRecog *****************");
 
   const appDir = path.dirname(require.main.filename);
@@ -111,30 +124,51 @@ function getFacialRecognitionData(studentPath, callback) {
     args: [studentPath], //An argument which can be accessed in the script using sys.argv[1]
   };
 
-  PythonShell.run("facialRecognition.py", options, function (err, result) {
-    if (err) throw err;
-    // result is an array consisting of messages collected
-    //during execution of script.
-    console.log("result: ", result.toString());
-    callback(result.toString());
+  return new Promise((resolve, reject) => {
+    try {
+      PythonShell.run("facialRecognition.py", options, function (err, result) {
+        if (err) console.log(err);
+        console.log("result: ", result);
+        resolve(result.toString());
+      });
+    } catch (err) {
+      console.log("error running script");
+      reject();
+    }
   });
+}
 
-  // console.log(scriptDir);
-  // const pyProg = spawn("python3", [
-  //   __dirname + `../facialRecog/facialRecognition.py`,
-  //   studentPath,
-  // ]);
+async function getCurrentLessonId(connection, courseId) {
+  console.log("Entered getCurrentLessonId");
+  try {
+    const query = util.promisify(connection.query).bind(connection);
 
-  // pyProg.stdout.on("data", (data) => {
-  //   console.log(data.toString());
-  //   callback(data.toString());
-  //   console.log("done");
-  // });
+    const lessonId = await query(
+      "SELECT lessonId FROM `attendance-taker`.lesson WHERE date = CURDATE() AND courseId=:courseId",
+      { courseId }
+    );
 
-  // pyProg.on("close", (code) => {
-  //   console.log(`child process close all stdio with code ${code}`);
-  //   // send data to browser
-  // });
+    return lessonId;
+  } catch (err) {
+    console.log(`error: ${err.message}`);
+  }
+}
+
+async function getAttendanceResults(connection, lessonId) {
+  console.log("Entered getAttendanceResults");
+
+  try {
+    const query = util.promisify(connection.query).bind(connection);
+
+    const attendanceResult = await query(
+      "SELECT * FROM `attendance-taker`.attendance WHERE lessonId=:lessonId",
+      { lessonId }
+    );
+
+    return attendanceResult;
+  } catch (err) {
+    console.log(`error: ${err.message}`);
+  }
 }
 
 module.exports = {
@@ -144,6 +178,9 @@ module.exports = {
   getStudentsForCourse,
   getStudentsPool,
   getFacialRecognitionData,
+  getCurrentLessonId,
+  getAttendanceResults,
+  getCourseName,
 };
 
 // Convert backend to async structure to avoid callback hell. will make life much simpler.

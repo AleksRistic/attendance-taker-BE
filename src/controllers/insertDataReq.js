@@ -7,22 +7,20 @@ const {
 const path = require("path");
 
 async function createCourseReq(req, res) {
-  const { courseName, instructorName, courseDesc, formData } = req.body;
+  const { courseName, instructorName, courseDesc } = req.body;
 
   const image = req.files.file.data;
 
   const connection = await getConnection();
 
-  createCourse(
+  const result = await createCourse(
     connection,
     courseName,
     instructorName,
     courseDesc,
-    image,
-    (result) => {
-      return res.json(result);
-    }
+    image
   );
+  return res.json(result);
 }
 
 //TODO: functionality for middle Names
@@ -39,22 +37,21 @@ async function addNewStudentsReq(req, res) {
 
   const connection = await getConnection();
 
-  await addNewStudents(connection, image, studentId, fullName, (result) => {});
+  await addNewStudents(connection, image, studentId, fullName);
 
   const connection1 = await getConnection();
 
-  addStudentsToCourse(connection1, studentId, courseId, (result) => {
-    return res.json(result);
-  });
+  const result = await addStudentsToCourse(connection1, studentId, courseId);
+
+  return res.json(result);
 }
 
 async function addStudentsToCourseReq(req, res) {
   const { studentId, courseId } = req.body;
   const connection = await getConnection();
 
-  addStudentsToCourse(connection, studentId, courseId, (result) => {
-    return res.json(result);
-  });
+  const result = await addStudentsToCourse(connection, studentId, courseId);
+  return res.json(result);
 }
 
 // CMPT 110

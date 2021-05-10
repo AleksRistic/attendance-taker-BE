@@ -1,14 +1,12 @@
-async function updateNextId(connection, callback) {
+const util = require("util");
+
+async function updateNextId(connection) {
   console.log("Entered updateNextId");
   try {
-    await connection.query(
-      "UPDATE sequence SET id=LAST_INSERT_ID(id+1)",
-      function (err, rows, fields) {
-        if (err) throw err;
+    const query = util.promisify(connection.query).bind(connection);
+    const id = await query("UPDATE sequence SET id=LAST_INSERT_ID(id+1)");
 
-        return callback(rows[0]);
-      }
-    );
+    return id[0];
   } catch (err) {
     console.log(`error: ${err.message}`);
   }

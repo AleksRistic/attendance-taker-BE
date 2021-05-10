@@ -1,96 +1,79 @@
 const { getNextIdReq } = require("../controllers/sequence");
+const util = require("util");
 
 async function createCourse(
   connection,
   courseName,
   instructorName,
   courseDesc,
-  courseImage,
-  callback
+  courseImage
 ) {
+  console.log("Entered createCourse");
   try {
-    console.log("Entered createCourse");
-    await getNextIdReq((courseId) => {
-      const dbName = "`attendance-taker`.courses";
+    const query = util.promisify(connection.query).bind(connection);
 
-      connection.query(
-        "INSERT INTO `attendance-taker`.courses (courseId, courseName, instructorName, courseDesc, courseImage) VALUES (:courseId, :courseName, :instructorName, :courseDesc, BINARY(:courseImage))",
-        { courseId, courseName, instructorName, courseDesc, courseImage },
-        function (err, rows, fields) {
-          if (err) throw err;
+    const courseId = await getNextIdReq();
 
-          return callback(rows);
-        }
-      );
-      connection.end();
-      console.log("Closed Connection");
-    });
+    await query(
+      "INSERT INTO `attendance-taker`.courses (courseId, courseName, instructorName, courseDesc, courseImage) VALUES (:courseId, :courseName, :instructorName, :courseDesc, BINARY(:courseImage))",
+      { courseId, courseName, instructorName, courseDesc, courseImage }
+    );
+
+    return;
   } catch (err) {
     console.log(`error: ${err.message}`);
+  } finally {
+    connection.end();
+    console.log("Closed Connection");
   }
 }
 
-async function addNewStudents(
-  connection,
-  studentImage,
-  studentId,
-  fullName,
-  callback
-) {
+async function addNewStudents(connection, studentImage, studentId, fullName) {
+  console.log("Entered addNewStudents");
   try {
-    console.log("Entered addNewStudents");
-
-    connection.query(
+    const query = util.promisify(connection.query).bind(connection);
+    await query(
       "INSERT INTO `attendance-taker`.students (student_Id, student_full_name, student_image) VALUES (:studentId, :fullName, BINARY(:studentImage))",
-      { studentId, fullName, studentImage },
-      function (err, rows, fields) {
-        if (err) callback(err);
-
-        return callback(rows);
-      }
+      { studentId, fullName, studentImage }
     );
-    connection.end();
-    console.log("Closed Connection");
+    return;
   } catch (err) {
     console.log(`error: ${err.message}`);
+  } finally {
+    connection.end();
+    console.log("Closed Connection");
   }
 }
 
-async function addStudentsToCourse(connection, studentId, courseId, callback) {
+async function addStudentsToCourse(connection, studentId, courseId) {
+  console.log("Entered addStudentsToCourse");
   try {
-    console.log("Entered addStudentsToCourse");
-    connection.query(
+    const query = util.promisify(connection.query).bind(connection);
+    await query(
       "INSERT INTO `attendance-taker`.student_has_course (studentId, courseId) VALUES (:studentId, :courseId)",
-      { studentId, courseId },
-      function (err, rows, fields) {
-        if (err) callback(err);
-
-        return callback(rows);
-      }
+      { studentId, courseId }
     );
-    connection.end();
-    console.log("Closed Connection");
+    return;
   } catch (err) {
     console.log(`error: ${err.message}`);
+  } finally {
+    connection.end();
+    console.log("Closed Connection");
   }
 }
 
-async function createLesson(connection, instructorId, courseId, callback) {
+async function createLesson(connection, instructorId, courseId) {
+  console.log("Entered createLesson");
   try {
-    console.log("Entered createLesson");
-    await getNextIdReq((lessonId) => {
-      connection.query(
-        "INSERT INTO `attendance-taker`.lesson (lessonId, date, instructorId, courseId) VALUES (:lessonId, CURDATE(), :instructorId, :courseId) ",
-        { lessonId, instructorId, courseId },
-        function (err, rows, fields) {
-          if (err) throw err;
+    const query = util.promisify(connection.query).bind(connection);
+    const lessonId = await getNextIdReq();
 
-          return callback(rows);
-        }
-      );
-      connection.end();
-      console.log("Closed Connection");
-    });
+    await query(
+      "INSERT INTO `attendance-taker`.lesson (lessonId, date, instructorId, courseId) VALUES (:lessonId, CURDATE(), :instructorId, :courseId) ",
+      { lessonId, instructorId, courseId }
+    );
+
+    return lessonId;
   } catch (err) {
     console.log(`error: ${err.message}`);
   }
@@ -101,24 +84,20 @@ async function createAttendanceRecord(
   lessonId,
   studentId,
   present,
-  absentReason,
-  callback
+  absentReason
 ) {
+  console.log("Entered createAttendanceRecord");
   try {
-    console.log("Entered createLesson");
-    await getNextIdReq((attendanceId) => {
-      connection.query(
-        "INSERT INTO `attendance-taker`.attendance (attendanceId, lessonId, studentId, present, absenceReason) VALUES (:attendanceId, :lessonId, :studentId, :present, :absentReason)",
-        { attendanceId, lessonId, studentId, present, absentReason },
-        function (err, rows, fields) {
-          if (err) throw err;
+    const query = util.promisify(connection.query).bind(connection);
 
-          return callback(rows);
-        }
-      );
-      connection.end();
-      console.log("Closed Connection");
-    });
+    const attendanceId = await getNextIdReq();
+    console.log(attendanceId, lessonId, studentId, present, absentReason);
+    await query(
+      "INSERT INTO `attendance-taker`.attendance (attendanceId, lessonId, studentId, present, absenceReason, timeTaken, dateTaken) VALUES (:attendanceId, :lessonId, :studentId, :present, :absentReason, CURRENT_TIME(), CURDATE())",
+      { attendanceId, lessonId, studentId, present, absentReason }
+    );
+
+    return;
   } catch (err) {
     console.log(`error: ${err.message}`);
   }

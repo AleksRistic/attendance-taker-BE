@@ -1,9 +1,8 @@
 const { updateNextId } = require("../services/updateData");
 
 async function updateNextIdReq(connection) {
-  updateNextId(connection, (result) => {
-    return result;
-  });
+  const id = await updateNextId(connection);
+  return id;
 }
 
 module.exports = { updateNextIdReq };
