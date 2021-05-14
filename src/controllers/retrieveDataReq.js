@@ -9,6 +9,9 @@ const {
   getAttendanceResults,
   getNextId,
   getCourseName,
+  checkCredentials,
+  getInstructorCourses,
+  getLessonData,
 } = require("../services/retrieveData");
 const {
   createLesson,
@@ -28,14 +31,23 @@ async function retrieveStudentsReq(req, res) {
 }
 
 async function getCoursesReq(req, res) {
+  const { instructorId } = req.query;
   const connection = await getConnection();
-  const result = await getCourses(connection);
+  const ids = await getInstructorCourses(connection, instructorId);
+
+  let array = [];
+  for (let id of ids) {
+    array.push(id.courseId);
+  }
+  let arr = array.join(",");
+  const result = await getCourses(connection, arr);
   return res.json(result);
 }
 
 async function getCourseNameReq(req, res) {
   const { courseId } = req.query;
   const connection = await getConnection();
+
   const result = await getCourseName(connection, courseId);
   return res.json(result);
 }
@@ -87,7 +99,7 @@ async function getFacialRecognitionDataReq(req, res) {
       array.push(student.studentId);
     }
     let arr = array.join(",");
-    console.log("calling retrievestudents");
+
     const studentList = await retrieveStudents(connection, arr);
     for (let student of studentList) {
       const dirPath = `${appDir}/students/${student.student_id}.jpg`;
@@ -100,17 +112,35 @@ async function getFacialRecognitionDataReq(req, res) {
     //get individual students and set their status'
 
     const studentSplit = faceData.split("|");
-    console.log(studentSplit);
 
     const present = studentSplit[0].split(",");
     const absent = studentSplit[1].split(",");
 
+    let total = 0;
+    let pCount = 0;
+    for (let p of present) {
+      if (p !== "") {
+        pCount++;
+        total++;
+      }
+    }
+
+    for (let a of absent) {
+      if (a !== "") total++;
+    }
+
     //Create lesson
-    const curLessonId = await createLesson(connection1, 123, courseId);
+    const curLessonId = await createLesson(
+      connection1,
+      123,
+      courseId,
+      (pCount / total) * 100,
+      pCount,
+      total - pCount
+    );
     //create attendance record
 
     for (let presentStudent of present) {
-      console.log(`presentStudent: ${presentStudent}`);
       if (presentStudent) {
         await createAttendanceRecord(
           connection1,
@@ -121,9 +151,8 @@ async function getFacialRecognitionDataReq(req, res) {
         );
       }
     }
-    console.log(absent);
+
     for (let absentStudent of absent) {
-      console.log(`absentStudent: ${absentStudent}`);
       if (absentStudent !== "") {
         await createAttendanceRecord(
           connection1,
@@ -143,7 +172,7 @@ async function getFacialRecognitionDataReq(req, res) {
       connection1,
       currentLessonId
     );
-    console.log(attendanceResults[0]);
+
     connection1.end();
     // Erase images from temp folder
     for (let student of studentList) {
@@ -164,7 +193,7 @@ async function getAttendanceForTable(req, res) {
     // Send back the attendance record with the
     const LessonIds = await getCurrentLessonId(connection, courseId);
     //get the latest attendance lesson
-    if (LessonIds.length === 0) res.json([]);
+    if (LessonIds.length === 0) return res.json([]);
     const currentLessonId = LessonIds[LessonIds.length - 1].lessonId;
     const attendanceResults = await getAttendanceResults(
       connection,
@@ -177,6 +206,21 @@ async function getAttendanceForTable(req, res) {
   }
 }
 
+async function checkCredentialsReq(req, res) {
+  const { username, password } = req.query;
+  const connection = await getConnection();
+
+  const result = await checkCredentials(connection, username, password);
+  return res.json(result);
+}
+
+async function getLessonDataReq(req, res) {
+  const { courseId } = req.query;
+  const connection = await getConnection();
+
+  const result = await getLessonData(connection, courseId);
+  return res.json(result);
+}
 // TODO: create a studentId list that looks like: (id, id, id) and pass that into retrieveStudents and passback the arary from there
 // touple maybe?
 // after you get that working just make sure everything in the front end table is correct: id, image
@@ -189,4 +233,6 @@ module.exports = {
   getStudentsPoolReq,
   getFacialRecognitionDataReq,
   getAttendanceForTable,
+  checkCredentialsReq,
+  getLessonDataReq,
 };

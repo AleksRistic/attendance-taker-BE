@@ -37,14 +37,18 @@ async function getNextId(connection) {
   }
 }
 
-async function getCourses(connection) {
+async function getCourses(connection, courseIds) {
   console.log("Entered getCourses");
+
   try {
     const query = util.promisify(connection.query).bind(connection);
+    if (courseIds.length === 0) courseIds = 0;
+    const sql =
+      "SELECT * FROM `attendance-taker`.courses WHERE courseId in (" +
+      courseIds +
+      ") ORDER BY courseId DESC";
 
-    const courses = await query(
-      "SELECT * FROM `attendance-taker`.courses ORDER BY courseId DESC"
-    );
+    const courses = await query(sql);
 
     return courses;
   } catch (err) {
@@ -83,7 +87,7 @@ async function getStudentsForCourse(connection, courseId) {
       "SELECT * FROM `attendance-taker`.student_has_course WHERE courseId=:courseId",
       { courseId }
     );
-    console.log(students);
+
     return students;
   } catch (err) {
     console.log(`error: ${err.message}`);
@@ -110,7 +114,7 @@ const path = require("path");
 const { PythonShell } = require("python-shell");
 //"c:/Users/Aleksa/attendance-taker-BE/src/facialRecog/facialRecognition.py"
 async function getFacialRecognitionData(studentPath) {
-  console.log("Entered getFacialRecog *****************");
+  console.log("Entered getFacialRecog *");
 
   const appDir = path.dirname(require.main.filename);
   const scriptDir = `${appDir}\\facialRecog\\facialRecognition.py`;
@@ -128,7 +132,7 @@ async function getFacialRecognitionData(studentPath) {
     try {
       PythonShell.run("facialRecognition.py", options, function (err, result) {
         if (err) console.log(err);
-        console.log("result: ", result);
+
         resolve(result.toString());
       });
     } catch (err) {
@@ -138,6 +142,7 @@ async function getFacialRecognitionData(studentPath) {
   });
 }
 
+// can only delete users if there is a lesson today
 async function getCurrentLessonId(connection, courseId) {
   console.log("Entered getCurrentLessonId");
   try {
@@ -171,6 +176,63 @@ async function getAttendanceResults(connection, lessonId) {
   }
 }
 
+async function checkCredentials(connection, username, password) {
+  console.log("Entered checkCredentials");
+  try {
+    const query = util.promisify(connection.query).bind(connection);
+
+    const RealPassword = await query(
+      "SELECT password, instructorId FROM `attendance-taker`.credentials WHERE username=:username",
+      { username }
+    );
+
+    if (RealPassword.length !== 0 && password === RealPassword[0].password)
+      return RealPassword[0].instructorId;
+
+    return "Incorrect";
+  } catch (err) {
+    console.log(`error: ${err.message}`);
+  } finally {
+    connection.end();
+    console.log("Closed Connection");
+  }
+}
+
+async function getInstructorCourses(connection, instructorId) {
+  console.log("Entered getInstructorCourses");
+  try {
+    const query = util.promisify(connection.query).bind(connection);
+
+    const ids = await query(
+      "SELECT courseId FROM `attendance-taker`.instructor_has_course WHERE instructorId=:instructorId",
+      { instructorId }
+    );
+
+    return ids;
+  } catch (err) {
+    console.log(`error: ${err.message}`);
+  }
+}
+
+async function getLessonData(connection, courseId) {
+  console.log("Entered getLessonData");
+  try {
+    const query = util.promisify(connection.query).bind(connection);
+
+    const lessonData = await query(
+      "SELECT * FROM `attendance-taker`.lesson WHERE date=CURDATE()",
+      { courseId }
+    );
+
+    return lessonData;
+  } catch (err) {
+    console.log(`error: ${err.message}`);
+  } finally {
+    connection.end();
+    console.log("Closed Connection");
+  }
+}
+
 module.exports = {
   retrieveStudents,
   getNextId,
@@ -181,6 +243,9 @@ module.exports = {
   getCurrentLessonId,
   getAttendanceResults,
   getCourseName,
+  checkCredentials,
+  getInstructorCourses,
+  getLessonData,
 };
 
 // Convert backend to async structure to avoid callback hell. will make life much simpler.

@@ -3,24 +3,29 @@ const {
   createCourse,
   addNewStudents,
   addStudentsToCourse,
+  addInstructor,
+  addCredentials,
+  addInstructorToCourse,
 } = require("../services/insertData");
-const path = require("path");
 
 async function createCourseReq(req, res) {
-  const { courseName, instructorName, courseDesc } = req.body;
+  const { courseName, instructorName, courseDesc, instructorId } = req.body;
 
   const image = req.files.file.data;
 
   const connection = await getConnection();
 
-  const result = await createCourse(
+  const courseId = await createCourse(
     connection,
     courseName,
     instructorName,
     courseDesc,
     image
   );
-  return res.json(result);
+
+  await addInstructorToCourse(connection, instructorId, courseId);
+
+  return res.json("Success");
 }
 
 //TODO: functionality for middle Names
@@ -54,7 +59,29 @@ async function addStudentsToCourseReq(req, res) {
   return res.json(result);
 }
 
+async function addInstructorReq(req, res) {
+  const { firstName, lastName, email, image, password } = req.body;
+  const connection = await getConnection();
+
+  const instructorId = await addInstructor(
+    connection,
+    firstName,
+    lastName,
+    email,
+    image
+  );
+
+  await addCredentials(connection, email, password, instructorId);
+
+  return res.json("Success");
+}
+
 // CMPT 110
 // Dr. Joshua Robertson
 // Lorem Ipsum is dummy text of the printing and typesetting industry.
-module.exports = { createCourseReq, addStudentsToCourseReq, addNewStudentsReq };
+module.exports = {
+  createCourseReq,
+  addStudentsToCourseReq,
+  addNewStudentsReq,
+  addInstructorReq,
+};

@@ -7,13 +7,19 @@ const {
   getFacialRecognitionDataReq,
   getAttendanceForTable,
   getCourseNameReq,
+  checkCredentialsReq,
+  getLessonDataReq,
 } = require("./controllers/retrieveDataReq");
 const { getNextIdReq } = require("./controllers/sequence");
 const {
   createCourseReq,
   addStudentsToCourseReq,
   addNewStudentsReq,
+  addInstructorReq,
 } = require("./controllers/insertDataReq");
+
+const { removeStudentFromClassReq } = require("./controllers/deleteData");
+const { updateStudentStatusReq } = require("./controllers/updateDataReq");
 const routes = new Router();
 
 // routes.get(
@@ -30,10 +36,19 @@ routes.get("/getstudentsforcourse", getStudentsForCourseReq);
 routes.get("/getstudentspool", getStudentsPoolReq);
 routes.get("/getfacialrecogdata", getFacialRecognitionDataReq);
 routes.get("/getattendacedata", getAttendanceForTable);
+routes.get("/checkcredentials", checkCredentialsReq);
+routes.get("/getlessondata", getLessonDataReq);
 
 //POST
 routes.post("/createcourse", createCourseReq);
 routes.post("/addstudentstocourse", addStudentsToCourseReq);
 routes.post("/addnewstudents", addNewStudentsReq);
+routes.post("/signup", addInstructorReq);
+
+//DELETE
+routes.delete("/removestudentfromclass", removeStudentFromClassReq);
+
+//PUT
+routes.put("/updatestudentstatus", updateStudentStatusReq);
 
 module.exports = routes;
