@@ -1,15 +1,15 @@
+require("dotenv").config();
 var mysql = require("mysql");
 const logger = require("../util/log");
 
 async function getConnection() {
   try {
     var connection = await mysql.createConnection({
-      host: "localhost",
-      user: "root",
-      password: "taker",
-      database: "attendance-taker",
-
-      port: "3333",
+      host: process.env.LOCALHOST,
+      user: process.env.DB_USER,
+      password: process.env.DB_PASS,
+      database: process.env.DB_NAME,
+      port: process.env.DB_PORT,
 
       queryFormat: function (query, values) {
         if (!values) return query;
